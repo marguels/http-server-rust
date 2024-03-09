@@ -1,8 +1,16 @@
 use std::{
-    io::{BufRead, BufReader, Write, Lines},
+    io::{BufRead, BufReader, Lines, Write},
     net::{TcpListener, TcpStream},
-    thread,
+    path::Path,
+    thread
 };
+use clap::{arg, Parser};
+
+#[derive(Parser, Debug)]
+struct Args {
+    #[arg(short, long)]
+    directory: Option<String>,
+}
 
 struct Request {
     path: String,
@@ -47,7 +55,7 @@ fn respond(stream: &mut TcpStream, status: &str, headers: &Vec<&str>, body: &str
     stream.flush().unwrap();
 }
 
-fn handle_request(mut stream: TcpStream) {
+fn handle_request(mut stream: TcpStream, directory: Option<String>) {
     let reader = BufReader::new(&stream);
     let mut lines = reader.lines();
     let request = parse_request(&mut lines);
@@ -65,6 +73,24 @@ fn handle_request(mut stream: TcpStream) {
             let headers = vec!["Content-Type: text/plain", &content_length.as_str()];
             respond(&mut stream, "200 OK", &headers, &body_content.as_str())
         }
+        _path if _path.starts_with("/files") => {
+            if directory.is_some() {
+                let filename = _path.strip_prefix("/files/").unwrap();
+                let file_path = Path::new(directory.unwrap().as_str()).join(filename);
+
+
+                if file_path.exists() && file_path.is_file() {
+                    let file_content = std::fs::read_to_string(file_path).unwrap();
+                    let content_length = format!("Content-Length: {}", &file_content.len());
+                    let headers = vec!["Content-Type: application/octet-stream", &content_length.as_str()];
+                    respond(&mut stream, "200 OK", &headers, &file_content);
+                } else {
+                    respond(&mut stream, "404 Not Found", &vec![], "");
+                }
+            } else {
+                respond(&mut stream, "404 Not Found", &vec![], "");
+            }
+        }
         _path if _path == "/" => {
             respond(&mut stream, "200 OK", &vec![], "")
         }
@@ -75,15 +101,16 @@ fn handle_request(mut stream: TcpStream) {
 }
 
 fn main() {
-
+    let args = Args::parse();
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
     
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
                 println!("Accepted new connection");
+                let directory = args.directory.clone();
                 thread::spawn(move || {
-                    handle_request(stream);
+                    handle_request(stream, directory);
                 });
             }
             Err(e) => {
