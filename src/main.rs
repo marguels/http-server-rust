@@ -1,5 +1,6 @@
 use std::{
-    io::{BufRead, BufReader, Lines, Write},
+    fs,
+    io::{BufRead, BufReader, Read, Write},
     net::{TcpListener, TcpStream},
     path::Path,
     thread
@@ -13,36 +14,59 @@ struct Args {
 }
 
 struct Request {
+    method: String,
     path: String,
     headers: Vec<(String, String)>,
+    body: Vec<u8>
 }
 
 impl Request {
-    fn new(path: String, headers: Vec<(String, String)>) -> Self {
-        Request { path, headers }
+    fn new(method: String, path: String, headers: Vec<(String, String)>, body: Vec<u8>) -> Self {
+        Request { method, path, headers, body }
     }
 }
 
-fn parse_request(lines: &mut Lines<BufReader<&TcpStream>>) -> Request {
+fn parse_request(reader: &mut BufReader<&TcpStream>) -> Request {
+    let mut method = String::new();
     let mut headers = Vec::new();
     let mut path = String::new();
+    let mut body = Vec::new();
 
-    for (i, line) in lines.enumerate() {
-        let line = line.unwrap();
-        if i == 0 {
-            let tokens: Vec<_> = line.split(" ").collect();
+    let mut lines = reader.by_ref().lines();
+
+    if let Some(Ok(first_line)) = lines.next() {
+        let tokens: Vec<_> = first_line.split_whitespace().collect();
+        if tokens.len() >= 2 {
+            method = tokens[0].to_string();
             path = tokens[1].to_string();
-        } else if !line.is_empty() {
-            let header_tokens: Vec<_> = line.split(": ").collect();
-            if header_tokens.len() == 2 {
-                headers.push((header_tokens[0].to_string(), header_tokens[1].to_string()));
-            }
-        } else {
-            break;
         }
     }
 
-    return Request::new(path, headers)
+    let mut content_length = 0;
+
+    for line in lines {
+        let line = line.unwrap();
+        if line.is_empty() {
+            break;
+        }
+        if let Some(pos) = line.find(":") {
+            let (key, value) = line.split_at(pos);
+            let value = value.trim_start_matches(": ");
+            headers.push((key.to_string(), value.to_string()));
+
+            if key.to_lowercase() == "content-length" {
+                content_length = value.parse::<usize>().unwrap_or(0);
+            }
+        }
+    }
+
+    if content_length > 0 {
+        let mut buffer = vec![0; content_length];
+        reader.read_exact(&mut buffer).unwrap();
+        body = buffer;
+    }
+
+    return Request::new(method, path, headers, body);
 }
 
 fn respond(stream: &mut TcpStream, status: &str, headers: &Vec<&str>, body: &str) {
@@ -56,9 +80,8 @@ fn respond(stream: &mut TcpStream, status: &str, headers: &Vec<&str>, body: &str
 }
 
 fn handle_request(mut stream: TcpStream, directory: Option<String>) {
-    let reader = BufReader::new(&stream);
-    let mut lines = reader.lines();
-    let request = parse_request(&mut lines);
+    let mut reader = BufReader::new(&stream);
+    let request = parse_request(&mut reader);
     
     match request.path {
         _path if _path.starts_with("/echo") => {
@@ -75,18 +98,43 @@ fn handle_request(mut stream: TcpStream, directory: Option<String>) {
         }
         _path if _path.starts_with("/files") => {
             if directory.is_some() {
-                let filename = _path.strip_prefix("/files/").unwrap();
-                let file_path = Path::new(directory.unwrap().as_str()).join(filename);
+                match request.method {
+                    _method if _method == "GET" => {
+                        let filename = _path.strip_prefix("/files/").unwrap();
+                        let file_path = Path::new(directory.unwrap().as_str()).join(filename);
 
+                        if file_path.exists() && file_path.is_file() {
+                            let file_content = std::fs::read_to_string(file_path).unwrap();
+                            let content_length = format!("Content-Length: {}", &file_content.len());
+                            let headers: Vec<&str> = vec!["Content-Type: application/octet-stream", &content_length.as_str()];
+                            respond(&mut stream, "200 OK", &headers, &file_content);
+                        } else {
+                            respond(&mut stream, "404 Not Found", &vec![], "");
+                        }
+                    }
+                    _method if _method == "POST" => {
+                        let filename = _path.strip_prefix("/files/").unwrap();
+                        let file_path = Path::new(directory.unwrap().as_str()).join(filename);
 
-                if file_path.exists() && file_path.is_file() {
-                    let file_content = std::fs::read_to_string(file_path).unwrap();
-                    let content_length = format!("Content-Length: {}", &file_content.len());
-                    let headers = vec!["Content-Type: application/octet-stream", &content_length.as_str()];
-                    respond(&mut stream, "200 OK", &headers, &file_content);
-                } else {
-                    respond(&mut stream, "404 Not Found", &vec![], "");
+                        let content_length = &request.headers.iter().find(|(k, _)| k == "Content-Length").unwrap().1.parse::<usize>().unwrap();
+                        print!("Content-Length: {}", content_length);
+
+                        // let content: String = String::from_utf8(request.body).unwrap();
+                        let mut file = fs::File::options().create(true).write(true).open(file_path).unwrap();
+                        file.write_all(&request.body).unwrap();
+                        file.flush().unwrap();
+
+                        let headers: Vec<&str> = vec!["Content-Type: text/plain"];
+                        respond(&mut stream, "201 OK", &headers, "");
+                    }
+                    _ => {
+                        respond(&mut stream, "405 Method Not Allowed", &vec![], "");
+                    }
                 }
+                
+
+
+                
             } else {
                 respond(&mut stream, "404 Not Found", &vec![], "");
             }
