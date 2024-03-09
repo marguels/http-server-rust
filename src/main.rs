@@ -131,10 +131,6 @@ fn handle_request(mut stream: TcpStream, directory: Option<String>) {
                         respond(&mut stream, "405 Method Not Allowed", &vec![], "");
                     }
                 }
-                
-
-
-                
             } else {
                 respond(&mut stream, "404 Not Found", &vec![], "");
             }

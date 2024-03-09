@@ -1,39 +1,38 @@
+# Simple HTTP Server in Rust
+
+This project is a basic HTTP server built in Rust as part of a learning exercise from [Codecrafter](https://codecrafter.net/), an incredible platform for coding challenges and learning. The server is designed to handle basic HTTP requests and serve static files. This project serves as a foundation and will evolve over time with additional features and improvements.
+
+## Codecrafters
+This is my solution to the
+["Build Your Own HTTP server" Challenge](https://app.codecrafters.io/courses/http-server/overview), written in Rust.
+
+A big thank you to [Codecrafters](https://codecrafters.io) for providing the challenges and learning opportunities that result in this project.
+
+If you're viewing this repo on GitHub, head over to [codecrafters.io](https://codecrafters.io) try the challenge.
+
 [![progress-banner](https://backend.codecrafters.io/progress/http-server/5bc3c758-1b79-4c95-b1bb-daa608514d70)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
 
-This is a starting point for Rust solutions to the
-["Build Your Own HTTP server" Challenge](https://app.codecrafters.io/courses/http-server/overview).
+## How to test it
 
-[HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) is the
-protocol that powers the web. In this challenge, you'll build a HTTP/1.1 server
-that is capable of serving multiple clients.
+### Prerequisites
 
-Along the way you'll learn about TCP servers,
-[HTTP request syntax](https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html),
-and more.
+- Rust and Cargo (latest stable version recommended). You can install them via [rustup](https://rustup.rs/).
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+### Installation
 
-# Passing the first stage
+1. Clone the repository:
 
-The entry point for your HTTP server implementation is in `src/main.rs`. Study
-and uncomment the relevant code, and push your changes to pass the first stage:
-
-```sh
-git add .
-git commit -m "pass 1st stage" # any msg
-git push origin master
+```bash
+git clone https://github.com/yourusername/simple-http-server-rust.git
+cd simple-http-server-rust
 ```
-
-Time to move on to the next stage!
-
-# Stage 2 & beyond
-
-Note: This section is for stages 2 and beyond.
-
-1. Ensure you have `cargo (1.70)` installed locally
-1. Run `./your_server.sh` to run your program, which is implemented in
-   `src/main.rs`. This command compiles your Rust project, so it might be slow
-   the first time you run it. Subsequent runs will be fast.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+2. Build the project:
+```bash
+cargo build --release
+```
+3. Run the server:
+```bash
+Copy code
+cargo run --release
+```
+By default, the server will run on localhost:8080. You can access it by navigating to http://localhost:8080 in your web browser.
