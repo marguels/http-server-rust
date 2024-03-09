@@ -1,6 +1,7 @@
 use std::{
     io::{BufRead, BufReader, Write, Lines},
     net::{TcpListener, TcpStream},
+    thread,
 };
 
 struct Request {
@@ -81,7 +82,9 @@ fn main() {
         match stream {
             Ok(stream) => {
                 println!("Accepted new connection");
-                handle_request(stream);
+                thread::spawn(move || {
+                    handle_request(stream);
+                });
             }
             Err(e) => {
                 println!("error: {}", e);
